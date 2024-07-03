@@ -57,29 +57,34 @@ export class Store implements IStore {
     return getPermission(this, key, "w");
   }
 
- read(path: string): StoreResult {
-  const keys = path.split(":");
-  let current: any = this;
+  read(path: string): StoreResult {
+    const keys = path.split(":");
+    let current: any = this;
 
-  for (const key of keys) {
-    if (!current.allowedToRead(key)) {
-      throw new Error(`Reading "${key}" is not allowed.`);
+    for (const key of keys) {
+      if (!current.allowedToRead(key)) {
+        throw new Error(`Reading "${key}" is not allowed.`);
+      }
+
+      if (typeof current[key] === "function") {
+        current[key] = current[key]();
+      }
+
+      if (current[key] instanceof Store) {
+        current = current[key];
+      } else if (current.store && key in current.store) {
+        current = current.store[key];
+      } else {
+        return undefined;
+      }
     }
 
-    if (typeof current[key] === "function") {
-      current = current[key]();
-    } else if (current[key] instanceof Store) {
-      current = current[key];
-    } else if (current.store && key in current.store) {
-      current = current.store[key];
-    } else {
-      return undefined;
+    if (typeof current === "function") {
+      return current();
     }
+
+    return current;
   }
-
-  return current instanceof Store ? current.entries() : current;
-}
-
 
   write(path: string, value: StoreValue): StoreValue {
     const keys = path.split(":");
